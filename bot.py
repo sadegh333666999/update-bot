@@ -1,23 +1,25 @@
-import os
 import requests
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
+# 🟢 اینجا توکن رباتت رو وارد کن 👇
+TOKEN = "7887805377:AAHwmulXBoPw2Aszl61RNLQLJvqyPELrVus"
+
+# گرفتن قیمت ارز از CoinGecko
 def get_price(symbol):
     symbol = symbol.lower()
 
-    # بررسی دستی ECG
     if symbol == "ecg":
-        coin_id = "ecg-token"
+        coin_id = "ecg-token"  # فرض بر اینکه در CoinGecko ثبت شده
     else:
         try:
             coins = requests.get("https://api.coingecko.com/api/v3/coins/list").json()
             match = next((c for c in coins if c["symbol"] == symbol), None)
             if not match:
-                return "❌ نماد ارز یافت نشد. لطفاً با دقت وارد کنید. مثال: btc, eth, sol"
+                return "❌ نماد ارز یافت نشد. لطفاً مثل btc یا eth وارد کنید."
             coin_id = match["id"]
         except:
-            return "⚠️ خطا در اتصال به سرور CoinGecko. لطفاً دوباره تلاش کنید."
+            return "⚠️ اتصال به سرور CoinGecko ممکن نیست."
 
     try:
         url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
@@ -31,30 +33,32 @@ def get_price(symbol):
 
         return f"""💰 {name} ({symbol.upper()})
 🔹 قیمت: ${price:,.2f}
-📈 ۲۴ساعته: {change:.2f}%
+📈 تغییر ۲۴ساعته: {change:.2f}%
 🔺 بیشترین: ${high:,.2f}
 🔻 کمترین: ${low:,.2f}
 📊 چارت: {chart}"""
     except:
-        return "❌ دریافت اطلاعات با خطا مواجه شد."
+        return "❌ خطا در دریافت اطلاعات قیمت."
 
+# فرمان /price
 def price_command(update: Update, context: CallbackContext):
     if context.args:
         symbol = context.args[0]
         update.message.reply_text(get_price(symbol))
     else:
-        update.message.reply_text("❗️ لطفاً نماد ارز را وارد کنید. مثال: /price btc")
+        update.message.reply_text("📌 مثال: /price btc")
 
+# هندل پیام‌های متنی معمولی
 def handle_message(update: Update, context: CallbackContext):
-    symbol = update.message.text.strip()
+    symbol = update.message.text.strip().lower()
     if len(symbol) > 6 or not symbol.isalpha():
-        update.message.reply_text("❗️ لطفاً فقط نماد ارز را وارد کنید. مثال: btc")
+        update.message.reply_text("❗️ فقط نماد ارز را بنویسید. مثل: btc یا eth")
         return
     update.message.reply_text(get_price(symbol))
 
+# اجرای ربات
 def main():
-    token = os.getenv("BOT_TOKEN")
-    updater = Updater(token, use_context=True)
+    updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("price", price_command))
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
