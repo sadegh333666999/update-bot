@@ -1,19 +1,15 @@
-import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
-from price import get_price
+import requests
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    symbol = update.message.text.lower()
-    price, change = get_price(symbol)
-    if price:
-        await update.message.reply_text(f"💰 {symbol.upper()}\nPrice: ${price}\n24h Change: {change}%")
+def get_price(symbol):
+    url = f"https://api.coingecko.com/api/v3/simple/price?ids={symbol}&vs_currencies=usd&include_24hr_change=true"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        if symbol in data:
+            price = data[symbol]['usd']
+            change = round(data[symbol]['usd_24h_change'], 2)
+            return price, change
+        else:
+            return None, None
     else:
-        await update.message.reply_text("❌ ارز مورد نظر یافت نشد.")
-
-if __name__ == '__main__':
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.run_polling()
+        return None, None
